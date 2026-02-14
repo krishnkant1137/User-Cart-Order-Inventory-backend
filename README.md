@@ -1,225 +1,155 @@
-📄 Project Documentation
-User → Cart → Order → Inventory Backend Flow
-1️⃣ Project Objective
+# 🛒 E-Commerce Backend Flow (User → Cart → Order → Inventory)
 
-The objective of this project is to build a production-level backend flow for an e-commerce system.
+## 📌 Project Overview
 
-The system supports:
+This project is a production-level backend implementation of an e-commerce order flow.
 
-Add products to cart
+It includes:
 
-Place order with stock validation
+- User management
+- Cart management
+- Order placement
+- Atomic stock validation
+- Duplicate order prevention (Idempotency)
+- Discount calculation
+- Inventory management
+- In-memory caching
+- JPA auditing
+- Proper layered architecture
 
-Prevent duplicate orders
+The focus of this project is clean architecture and production-ready backend design.
 
-Apply discount
+---
 
-Maintain inventory
+## 🏗 Architecture Design
 
-Use caching
+The project follows **domain-based layered architecture**:
 
-Use proper layering
+com.krishnkant.inventorybackendflow
+│
+├── user
+├── product
+├── cart
+├── order
+├── inventory
+├── discount
+├── common
+├── exception
+├── config
 
-Use JPA auditing
-
-The focus is not only functionality but also clean architecture and production-ready design.
-
-2️⃣ High-Level Architecture
-
-The project follows domain-based layered architecture.
-
-Each module is separated:
-
-user
-
-product
-
-cart
-
-order
-
-inventory
-
-discount
-
-common
-
-exception
-
-config
 
 Each module contains:
+- entity
+- repository
+- service
+- controller (where required)
 
-entity
+---
 
-repository
+## 🔄 High-Level Flow
 
-service
+1. User adds product to cart
+2. User places order
+3. System validates stock atomically
+4. Discount is applied
+5. Order is saved
+6. Cart is marked as ORDERED
+7. Inventory is updated
 
-controller (where required)
+---
 
-This structure improves scalability and maintainability.
+## 🧱 Core Features
 
-3️⃣ BaseEntity and Auditing
+### 1️⃣ Cart System
 
-We created a BaseEntity class with:
+- One ACTIVE cart per user
+- Multiple CartItems per cart
+- Cart status: ACTIVE / ORDERED
+- Stock is NOT validated during add-to-cart
+
+---
+
+### 2️⃣ Order System
+
+- Order contains snapshot of product details
+- Uses unique `orderReference` (Idempotency-Key)
+- Prevents duplicate order creation
+- Uses `@Transactional` for consistency
+
+---
+
+### 3️⃣ Atomic Stock Validation
+
+To prevent race conditions, stock is deducted using an atomic database update:
+
+```sql
+UPDATE product
+SET stock = stock - :quantity
+WHERE id = :productId AND stock >= :quantity
+If no row is updated → stock is insufficient.
+
+This prevents overselling.
+
+4️⃣ Idempotency Handling
+Order API requires:
+
+Idempotency-Key (Request Header)
+If the same key is used again:
+
+Existing order is returned
+
+Duplicate order is not created
+
+5️⃣ Discount Service
+Discount logic is separated into DiscountService.
+
+Current Rule:
+
+10% discount if totalAmount > 5000
+
+This keeps business logic modular.
+
+6️⃣ Inventory Module
+Provides:
+
+Check stock API
+
+Update stock API (admin)
+
+Uses:
+
+ConcurrentHashMap
+for in-memory caching.
+
+⚠ Future improvement: Can be replaced with Redis for distributed systems.
+
+7️⃣ Auditing
+All entities extend BaseEntity.
+
+Fields:
 
 createdAt
 
 updatedAt
 
-JPA Auditing is enabled using @EnableJpaAuditing.
+Enabled using:
 
-All entities extend BaseEntity.
+@EnableJpaAuditing
+8️⃣ Exception Handling
+Custom exceptions implemented:
 
-This ensures automatic tracking of record creation and update time.
+CartNotFoundException
 
-Purpose:
-To maintain audit history without writing manual timestamp logic.
+StockNotAvailableException
 
-4️⃣ Product Module
+DuplicateOrderException
 
-Product entity contains:
+EmptyCartException
 
-id
+Global exception handler returns structured error responses.
 
-name
-
-price
-
-stock
-
-active (soft delete support)
-
-Stock is used during order placement.
-
-Soft delete is used instead of physical delete to maintain data integrity.
-
-5️⃣ User Module
-
-User entity contains:
-
-id
-
-name
-
-email (unique)
-
-active flag
-
-Currently authentication is not implemented.
-UserId is passed in request for simplicity.
-
-6️⃣ Cart Module
-
-Cart flow is designed properly.
-
-One user can have only one ACTIVE cart.
-
-Cart contains:
-
-user reference (ManyToOne)
-
-status (ACTIVE / ORDERED)
-
-list of CartItems
-
-CartItem contains:
-
-cart reference
-
-product reference
-
-quantity
-
-Important Design Decisions:
-
-We do not validate stock during add to cart.
-
-Stock is validated only during order placement.
-
-Cart is not deleted after order. It is marked as ORDERED.
-
-Reason:
-To preserve history and maintain clean business flow.
-
-7️⃣ Order Module
-
-Order module is the core of the system.
-
-Order contains:
-
-user reference
-
-orderReference (idempotency key)
-
-totalAmount
-
-discountAmount
-
-finalAmount
-
-status
-
-list of OrderItems
-
-OrderItem stores snapshot data:
-
-productId
-
-productName
-
-price
-
-quantity
-
-totalPrice
-
-Reason:
-Product price may change later.
-Order should preserve original purchase data.
-
-8️⃣ Idempotency Handling
-
-Order API requires an Idempotency-Key in request header.
-
-If same key is used again:
-
-System returns already created order
-
-Duplicate order is not created
-
-This prevents accidental double order due to network retry.
-
-9️⃣ Atomic Stock Deduction
-
-To prevent race condition, stock is deducted using atomic update query:
-
-UPDATE product
-SET stock = stock - quantity
-WHERE id = productId AND stock >= quantity
-
-
-If no row is updated:
-
-StockNotAvailableException is thrown.
-
-This prevents overselling in concurrent environment.
-
-🔟 Discount Logic
-
-Discount is handled by separate DiscountService.
-
-Currently:
-
-10% discount applied if totalAmount > 5000
-
-Reason:
-Business logic should be separated from order logic.
-
-1️⃣1️⃣ Transaction Management
-
-OrderService is annotated with @Transactional.
+🔐 Transaction Management
+OrderService uses @Transactional.
 
 If any step fails:
 
@@ -229,65 +159,55 @@ Order save
 
 Cart update
 
-Everything is rolled back automatically.
+Everything is rolled back.
 
-This ensures consistency.
-
-1️⃣2️⃣ Inventory Module
-
-Inventory module provides:
-
-Check stock API
-
-Update stock API
-
-Caching is implemented using ConcurrentHashMap.
-
-Design decision:
-Task required in-memory caching.
-
-Future Improvement:
-This can be replaced with Redis for distributed environment.
-
-Caching layer is designed in a way that it can be replaced without changing business logic.
-
-1️⃣3️⃣ Key Production Concepts Used
-
-Domain-based architecture
+🧠 Production Concepts Used
+Domain-based modular structure
 
 DTO instead of entity exposure
 
-Atomic DB operation
+Atomic DB operations
 
-Idempotency handling
+Idempotency pattern
 
 Transaction management
 
-Enum for status handling
-
-Soft delete pattern
+Enum-based state handling
 
 Snapshot order item design
 
-In-memory caching
+In-memory caching abstraction
 
-Proper layering
+Clean logging
 
-1️⃣4️⃣ Future Enhancements
+Soft delete pattern
 
+🚀 Future Enhancements
 Replace in-memory cache with Redis
 
-Add authentication using JWT
+Add JWT authentication
 
-Add pagination in order history
+Add pagination for order history
 
 Add payment integration
 
-Add distributed locking if required
+Add distributed locking if needed
 
-Conclusion
+📌 Technologies Used
+Java
 
+Spring Boot
+
+Spring Data JPA
+
+MySQL
+
+Lombok
+
+ConcurrentHashMap (Caching)
+
+📖 Conclusion
 This project is designed with production-level thinking.
 
-Focus was not only on making APIs work,
-but on building a clean, scalable, and safe backend architecture.
+The goal was not only to make APIs work,
+but to build a scalable, safe, and maintainable backend architecture.

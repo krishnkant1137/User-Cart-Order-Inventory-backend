@@ -1,5 +1,6 @@
 package com.krishnkant.inventorybackendflow.inventory.service;
 
+import com.krishnkant.inventorybackendflow.exception.ProductNotFoundException;
 import com.krishnkant.inventorybackendflow.product.entity.Product;
 import com.krishnkant.inventorybackendflow.product.repository.ProductRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -46,7 +47,7 @@ public class InventoryService {
 
         Product product = productRepository.findById(productId)
                 .orElseThrow(() ->
-                        new RuntimeException("Product not found"));
+                        new ProductNotFoundException("Product not found"));
 
         product.setStock(newStock);
         productRepository.save(product);

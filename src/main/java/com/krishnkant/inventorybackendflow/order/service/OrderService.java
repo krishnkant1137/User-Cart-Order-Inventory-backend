@@ -5,6 +5,8 @@ import com.krishnkant.inventorybackendflow.cart.entity.CartItem;
 import com.krishnkant.inventorybackendflow.cart.entity.CartStatus;
 import com.krishnkant.inventorybackendflow.cart.repository.CartRepository;
 import com.krishnkant.inventorybackendflow.discount.service.DiscountService;
+import com.krishnkant.inventorybackendflow.exception.CartNotFoundException;
+import com.krishnkant.inventorybackendflow.exception.StockNotAvailableException;
 import com.krishnkant.inventorybackendflow.order.dto.OrderItemDTO;
 import com.krishnkant.inventorybackendflow.order.dto.OrderResponseDTO;
 import com.krishnkant.inventorybackendflow.order.entity.Order;
@@ -67,7 +69,7 @@ public class OrderService {
                         new RuntimeException("Active cart not found"));
 
         if (cart.getItems().isEmpty()) {
-            throw new RuntimeException("Cart is empty");
+            throw new CartNotFoundException("Cart is empty");
         }
 
         double totalAmount = 0;
@@ -83,7 +85,7 @@ public class OrderService {
                     .deductStockIfAvailable(productId, quantity);
 
             if (updatedRows == 0) {
-                throw new RuntimeException(
+                throw new StockNotAvailableException(
                         "Insufficient stock for product id: " + productId);
             }
 

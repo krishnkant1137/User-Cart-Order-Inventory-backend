@@ -1,5 +1,6 @@
 package com.krishnkant.inventorybackendflow.order.controller;
 
+import com.krishnkant.inventorybackendflow.common.ApiResponse;
 import com.krishnkant.inventorybackendflow.order.dto.OrderResponseDTO;
 import com.krishnkant.inventorybackendflow.order.service.OrderService;
 import lombok.extern.slf4j.Slf4j;
@@ -20,26 +21,34 @@ public class OrderController {
     }
 
     @PostMapping("/place")
-    public ResponseEntity<OrderResponseDTO> placeOrder(
+    public ResponseEntity<ApiResponse<OrderResponseDTO>> placeOrder(
             @RequestParam Long userId,
             @RequestHeader("Idempotency-Key") String idempotencyKey) {
-
-        log.info("Order request received");
 
         OrderResponseDTO response =
                 orderService.placeOrder(userId, idempotencyKey);
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                ApiResponse.success(response,
+                        "Order placed successfully",
+                        200)
+        );
     }
 
+
     @GetMapping("/history")
-    public ResponseEntity<List<OrderResponseDTO>> getOrderHistory(
+    public ResponseEntity<ApiResponse<List<OrderResponseDTO>>> getOrderHistory(
             @RequestParam Long userId) {
 
         List<OrderResponseDTO> history =
                 orderService.getOrderHistory(userId);
 
-        return ResponseEntity.ok(history);
+        return ResponseEntity.ok(
+                ApiResponse.success(history,
+                        "Order history fetched successfully",
+                        200)
+        );
     }
+
 
 }

@@ -1,5 +1,6 @@
 package com.krishnkant.inventorybackendflow.product.service;
 
+import com.krishnkant.inventorybackendflow.exception.ProductNotFoundException;
 import com.krishnkant.inventorybackendflow.product.entity.Product;
 import com.krishnkant.inventorybackendflow.product.repository.ProductRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +22,6 @@ public class ProductService {
 
         return productRepository.findByIdAndActiveTrue(productId)
                 .orElseThrow(() ->
-                        new RuntimeException("Product not found"));
+                        new ProductNotFoundException("Product not found"));
     }
 }

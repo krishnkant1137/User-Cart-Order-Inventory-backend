@@ -69,6 +69,8 @@ public class ProductServiceImp implements ProductService {
         Product product = getActiveProduct(id);
 
         product.setActive(false);
+        productRepository.save(product);
+
     }
 
     private ProductResponseDTO mapToResponse(Product product) {

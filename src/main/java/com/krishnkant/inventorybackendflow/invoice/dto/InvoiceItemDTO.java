@@ -1,11 +1,11 @@
-package com.krishnkant.inventorybackendflow.cart.dto;
+package com.krishnkant.inventorybackendflow.invoice.dto;
 
 import java.math.BigDecimal;
 
-public record CartItemResponseDTO(
+public record InvoiceItemDTO(
         Long productId,
         String productName,
         BigDecimal price,
         Integer quantity,
-        BigDecimal  totalPrice
+        BigDecimal totalPrice
 ) {}

@@ -4,6 +4,8 @@ import com.krishnkant.inventorybackendflow.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Entity
 @Table(name = "products")
 @Getter
@@ -21,7 +23,7 @@ public class Product extends BaseEntity {
     private String name;
 
     @Column(nullable = false)
-    private Double price;
+    private BigDecimal price;
 
     @Column(nullable = false)
     private Integer stock;

@@ -1,55 +1,55 @@
 package com.krishnkant.inventorybackendflow.common;
 
-import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
+import org.slf4j.MDC;
+import org.springframework.http.HttpStatus;
 
 import java.time.LocalDateTime;
-import org.slf4j.MDC;
 
-@Data
-@Builder
+@Getter
 public class ApiResponse<T> {
 
-    private boolean success;
-    private String message;
-    private T data;
-    private int status;
-    private LocalDateTime timestamp;
-    private String requestId;
+    private final boolean success;
+    private final String message;
+    private final T data;
+    private final int status;
+    private final LocalDateTime timestamp;
+    private final String requestId;
 
-    public static <T> ApiResponse<T> success(T data, String message, int status) {
-        return ApiResponse.<T>builder()
-                .success(true)
-                .message(message)
-                .data(data)
-                .status(status)
-                .timestamp(LocalDateTime.now())
-                .requestId(MDC.get("requestId"))
-                .build();
+    private ApiResponse(
+            boolean success,
+            String message,
+            T data,
+            HttpStatus status) {
+
+        this.success = success;
+        this.message = message;
+        this.data = data;
+        this.status = status.value();
+        this.timestamp = LocalDateTime.now();
+        this.requestId = MDC.get("requestId");
     }
 
-    public static <T> ApiResponse<T> failure(String message, int status) {
-        return ApiResponse.<T>builder()
-                .success(false)
-                .message(message)
-                .status(status)
-                .timestamp(LocalDateTime.now())
-                .requestId(MDC.get("requestId"))
-                .build();
+    public static <T> ApiResponse<T> success(
+            T data,
+            String message,
+            HttpStatus status) {
+
+        return new ApiResponse<>(true, message, data, status);
+    }
+
+    public static <T> ApiResponse<T> failure(
+            String message,
+            HttpStatus status) {
+
+        return new ApiResponse<>(false, message, null, status);
     }
 
     public static <T> ApiResponse<T> failure(
             T data,
             String message,
-            int status) {
+            HttpStatus status) {
 
-        return ApiResponse.<T>builder()
-                .success(false)
-                .message(message)
-                .data(data)
-                .status(status)
-                .timestamp(LocalDateTime.now())
-                .requestId(MDC.get("requestId"))
-                .build();
+        return new ApiResponse<>(false, message, data, status);
     }
 }

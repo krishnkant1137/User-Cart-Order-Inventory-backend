@@ -3,9 +3,10 @@ package com.krishnkant.inventorybackendflow.order.controller;
 import com.krishnkant.inventorybackendflow.common.ApiResponse;
 import com.krishnkant.inventorybackendflow.order.dto.OrderResponseDTO;
 import com.krishnkant.inventorybackendflow.order.entity.OrderStatus;
-import com.krishnkant.inventorybackendflow.order.service.OrderServiceImp;
+import com.krishnkant.inventorybackendflow.order.service.OrderService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,10 +15,10 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/orders")
 public class OrderController {
 
-    private final OrderServiceImp orderServiceImp;
+    private final OrderService orderService;
 
-    public OrderController(OrderServiceImp orderServiceImp) {
-        this.orderServiceImp = orderServiceImp;
+    public OrderController(OrderService orderService) {
+        this.orderService = orderService;
     }
 
     @PostMapping("/place")
@@ -26,13 +27,15 @@ public class OrderController {
             @RequestHeader("Idempotency-Key") String idempotencyKey) {
 
         OrderResponseDTO response =
-                orderServiceImp.placeOrder(userId, idempotencyKey);
+                orderService.placeOrder(userId, idempotencyKey);
 
-        return ResponseEntity.ok(
-                ApiResponse.success(response,
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(
+                        response,
                         "Order placed successfully",
-                        200)
-        );
+                        HttpStatus.CREATED
+                ));
+
     }
 
 
@@ -45,12 +48,12 @@ public class OrderController {
             @RequestParam(defaultValue = "desc") String direction) {
 
         Page<OrderResponseDTO> history =
-                orderServiceImp.getOrderHistory(userId, page, size, sortBy, direction);
+                orderService.getOrderHistory(userId, page, size, sortBy, direction);
 
         return ResponseEntity.ok(
                 ApiResponse.success(history,
                         "Order history fetched successfully",
-                        200)
+                        HttpStatus.CREATED)
         );
     }
     @PutMapping("/{orderId}/status")
@@ -59,13 +62,29 @@ public class OrderController {
             @RequestParam OrderStatus newStatus) {
 
         OrderResponseDTO response =
-                orderServiceImp.updateStatus(orderId, newStatus);
+                orderService.updateStatus(orderId, newStatus);
 
         return ResponseEntity.ok(
                 ApiResponse.success(
                         response,
                         "Order status updated successfully",
-                        200
+                        HttpStatus.CREATED
+                )
+        );
+    }
+
+    @PostMapping("/{orderId}/pay")
+    public ResponseEntity<ApiResponse<OrderResponseDTO>> payOrder(
+            @PathVariable Long orderId) {
+
+        OrderResponseDTO response =
+                orderService.payOrder(orderId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        response,
+                        "Payment successful",
+                        HttpStatus.OK
                 )
         );
     }

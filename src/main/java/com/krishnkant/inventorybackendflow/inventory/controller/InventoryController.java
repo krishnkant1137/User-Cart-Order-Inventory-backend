@@ -5,6 +5,7 @@ import com.krishnkant.inventorybackendflow.inventory.dto.StockResponse;
 import com.krishnkant.inventorybackendflow.inventory.dto.StockUpdateResponse;
 import com.krishnkant.inventorybackendflow.inventory.service.InventoryServiceImp;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,7 +30,7 @@ public class InventoryController {
                 ApiResponse.success(
                         new StockResponse(productId, stock),
                         "Stock fetched successfully",
-                        200
+                        HttpStatus.CREATED
                 )
         );
     }
@@ -49,7 +50,7 @@ public class InventoryController {
                 ApiResponse.success(
                         response,
                         "Stock updated successfully",
-                        200
+                        HttpStatus.CREATED
                 )
         );
     }

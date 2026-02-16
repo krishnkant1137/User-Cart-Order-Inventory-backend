@@ -14,4 +14,5 @@ public interface OrderService {
             String direction);
 
     public OrderResponseDTO updateStatus(Long orderId, OrderStatus newStatus);
-    }
+    OrderResponseDTO payOrder(Long orderId);
+}

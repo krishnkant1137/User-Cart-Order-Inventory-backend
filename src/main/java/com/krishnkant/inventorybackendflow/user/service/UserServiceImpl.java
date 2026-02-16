@@ -1,4 +1,4 @@
-package com.krishnkant.inventorybackendflow.user.serviceImp;
+package com.krishnkant.inventorybackendflow.user.service;
 
 import com.krishnkant.inventorybackendflow.exception.EmailAlreadyExistException;
 import com.krishnkant.inventorybackendflow.exception.UserNotFoundException;
@@ -6,7 +6,6 @@ import com.krishnkant.inventorybackendflow.user.dto.UserRequestDTO;
 import com.krishnkant.inventorybackendflow.user.dto.UserResponseDTO;
 import com.krishnkant.inventorybackendflow.user.entity.User;
 import com.krishnkant.inventorybackendflow.user.repository.UserRepository;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -14,29 +13,28 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@Slf4j
 @Service
 @Transactional
-public class UserServiceImp implements UserService {
+public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
 
-    public UserServiceImp(UserRepository userRepository) {
+    public UserServiceImpl(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
-
+    @Override
     public UserResponseDTO create(UserRequestDTO dto) {
 
-        log.info("Creating user with email={}", dto.email());
+        String email = dto.email().toLowerCase();
 
-        if (userRepository.existsByEmail(dto.email())) {
+        if (userRepository.existsByEmail(email)) {
             throw new EmailAlreadyExistException("Email already exists");
         }
 
         User user = User.builder()
                 .name(dto.name())
-                .email(dto.email())
+                .email(email)
                 .active(true)
                 .build();
 
@@ -45,18 +43,22 @@ public class UserServiceImp implements UserService {
         return mapToResponse(saved);
     }
 
+    @Override
+    @Transactional(readOnly = true)
     public User getActiveUser(Long userId) {
-
-        log.info("Fetching user with id: {}", userId);
 
         return userRepository.findByIdAndActiveTrue(userId)
                 .orElseThrow(() ->
                         new UserNotFoundException("User not found"));
     }
 
+    @Override
+    @Transactional(readOnly = true)
     public Page<UserResponseDTO> getAll(int page, int size) {
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Pageable pageable =
+                PageRequest.of(page, size,
+                        Sort.by("createdAt").descending());
 
         return userRepository.findByActiveTrue(pageable)
                 .map(this::mapToResponse);
@@ -71,6 +73,4 @@ public class UserServiceImp implements UserService {
                 user.getActive()
         );
     }
-
 }
-

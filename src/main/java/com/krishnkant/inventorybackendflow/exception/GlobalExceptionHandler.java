@@ -9,6 +9,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -16,98 +17,68 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(StockNotAvailableException.class)
-    public ResponseEntity<ApiResponse<?>> handleStock(
-            StockNotAvailableException ex) {
+    private ResponseEntity<ApiResponse<?>> buildErrorResponse(
+            String message,
+            HttpStatus status) {
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.failure(
-                        ex.getMessage(),
-                        HttpStatus.BAD_REQUEST.value()
-                ));
+        log.warn("Business Exception: {} - Status: {}", message, status);
+
+        return ResponseEntity.status(status)
+                .body(ApiResponse.failure(message, status));
     }
 
+    @ExceptionHandler(StockNotAvailableException.class)
+    public ResponseEntity<ApiResponse<?>> handleStock(StockNotAvailableException ex) {
+        return buildErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
 
     @ExceptionHandler(CartNotFoundException.class)
-    public ResponseEntity<ApiResponse<?>> handleCartNotFound(
-            CartNotFoundException ex) {
-
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.failure(
-                        ex.getMessage(),
-                        HttpStatus.NOT_FOUND.value()
-                ));
+    public ResponseEntity<ApiResponse<?>> handleCartNotFound(CartNotFoundException ex) {
+        return buildErrorResponse(ex.getMessage(), HttpStatus.NOT_FOUND);
     }
-
 
     @ExceptionHandler(ProductNotFoundException.class)
-    public ResponseEntity<ApiResponse<?>> handleProductNotFound(
-            ProductNotFoundException ex) {
-
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.failure(
-                        ex.getMessage(),
-                        HttpStatus.NOT_FOUND.value()
-                ));
+    public ResponseEntity<ApiResponse<?>> handleProductNotFound(ProductNotFoundException ex) {
+        return buildErrorResponse(ex.getMessage(), HttpStatus.NOT_FOUND);
     }
-
 
     @ExceptionHandler(DuplicateOrderException.class)
-    public ResponseEntity<ApiResponse<?>> handleDuplicateOrder(
-            DuplicateOrderException ex) {
-
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ApiResponse.failure(
-                        ex.getMessage(),
-                        HttpStatus.CONFLICT.value()
-                ));
+    public ResponseEntity<ApiResponse<?>> handleDuplicateOrder(DuplicateOrderException ex) {
+        return buildErrorResponse(ex.getMessage(), HttpStatus.CONFLICT);
     }
-
 
     @ExceptionHandler(EmptyCartException.class)
-    public ResponseEntity<ApiResponse<?>> handleEmptyCart(
-            EmptyCartException ex) {
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.failure(
-                        ex.getMessage(),
-                        HttpStatus.BAD_REQUEST  .value()
-                ));
+    public ResponseEntity<ApiResponse<?>> handleEmptyCart(EmptyCartException ex) {
+        return buildErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
-
 
     @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<ApiResponse<?>> handleUserNotFound(
-            UserNotFoundException ex) {
-
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.failure(
-                        ex.getMessage(),
-                        HttpStatus.NOT_FOUND.value()
-                ));
+    public ResponseEntity<ApiResponse<?>> handleUserNotFound(UserNotFoundException ex) {
+        return buildErrorResponse(ex.getMessage(), HttpStatus.NOT_FOUND);
     }
+
+    @ExceptionHandler(EmailAlreadyExistException.class)
+    public ResponseEntity<ApiResponse<?>> handleEmailAlreadyExist(EmailAlreadyExistException ex) {
+        return buildErrorResponse("Email already exists", HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(OrderNotFoundException.class)
+    public ResponseEntity<ApiResponse<?>> handleOrderNotFound(OrderNotFoundException ex) {
+        return buildErrorResponse("Email already exists", HttpStatus.NOT_FOUND);
+    }
+
 
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
     public ResponseEntity<ApiResponse<?>> handleOptimisticLock(
             ObjectOptimisticLockingFailureException ex) {
 
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ApiResponse.failure(
-                        "Record was modified by another transaction. Please retry.",
-                        HttpStatus.CONFLICT.value()
-                ));
+        return buildErrorResponse(
+                "Record was modified by another transaction. Please retry.",
+                HttpStatus.CONFLICT
+        );
     }
 
-    @ExceptionHandler(EmailAlreadyExistException.class)
-    public ResponseEntity<ApiResponse<?>> handleEmailAlreadyExist(
-            EmailAlreadyExistException ex) {
 
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ApiResponse.failure(
-                        "Email already exists",
-                        HttpStatus.CONFLICT.value()
-                ));
-    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Map<String, String>>> handleValidation(
@@ -117,15 +88,16 @@ public class GlobalExceptionHandler {
 
         ex.getBindingResult().getFieldErrors()
                 .forEach(error ->
-                        errors.put(error.getField(),
-                                error.getDefaultMessage())
+                        errors.put(error.getField(), error.getDefaultMessage())
                 );
+
+        log.warn("Validation failed: {}", errors);
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.failure(
                         errors,
                         "Validation failed",
-                        HttpStatus.BAD_REQUEST.value()
+                        HttpStatus.BAD_REQUEST
                 ));
     }
 
@@ -133,12 +105,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<?>> handleMissingParam(
             MissingServletRequestParameterException ex) {
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.failure(
-                        ex.getParameterName() + " parameter is required",
-                        HttpStatus.BAD_REQUEST.value()
-                ));
+        return buildErrorResponse(
+                ex.getParameterName() + " parameter is required",
+                HttpStatus.BAD_REQUEST
+        );
     }
+
 
 
 
@@ -147,12 +119,9 @@ public class GlobalExceptionHandler {
 
         log.error("Unhandled exception occurred", ex);
 
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.failure(
-                        "Something went wrong. Please try again later.",
-                        HttpStatus.INTERNAL_SERVER_ERROR.value()
-                ));
+        return buildErrorResponse(
+                "Something went wrong. Please try again later.",
+                HttpStatus.INTERNAL_SERVER_ERROR
+        );
     }
-
-
 }

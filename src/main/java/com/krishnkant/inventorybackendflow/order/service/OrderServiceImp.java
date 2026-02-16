@@ -6,97 +6,108 @@ import com.krishnkant.inventorybackendflow.cart.entity.CartStatus;
 import com.krishnkant.inventorybackendflow.cart.repository.CartRepository;
 import com.krishnkant.inventorybackendflow.discount.service.DiscountService;
 import com.krishnkant.inventorybackendflow.exception.CartNotFoundException;
+import com.krishnkant.inventorybackendflow.exception.OrderNotFoundException;
 import com.krishnkant.inventorybackendflow.exception.StockNotAvailableException;
+import com.krishnkant.inventorybackendflow.invoice.entity.Invoice;
+import com.krishnkant.inventorybackendflow.invoice.repository.InvoiceRepository;
 import com.krishnkant.inventorybackendflow.order.dto.OrderItemDTO;
 import com.krishnkant.inventorybackendflow.order.dto.OrderResponseDTO;
 import com.krishnkant.inventorybackendflow.order.entity.Order;
 import com.krishnkant.inventorybackendflow.order.entity.OrderItem;
 import com.krishnkant.inventorybackendflow.order.entity.OrderStatus;
+import com.krishnkant.inventorybackendflow.order.entity.PaymentStatus;
 import com.krishnkant.inventorybackendflow.order.repository.OrderRepository;
 import com.krishnkant.inventorybackendflow.product.entity.Product;
 import com.krishnkant.inventorybackendflow.product.repository.ProductRepository;
 import com.krishnkant.inventorybackendflow.user.entity.User;
-import com.krishnkant.inventorybackendflow.user.serviceImp.UserServiceImp;
+import com.krishnkant.inventorybackendflow.user.service.UserService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
 @Transactional
 public class OrderServiceImp implements OrderService {
+
     private final OrderRepository orderRepository;
     private final CartRepository cartRepository;
     private final ProductRepository productRepository;
-    private final UserServiceImp userServiceImp;
+    private final UserService userService;
     private final DiscountService discountService;
+    private final InvoiceRepository invoiceRepository;
 
     public OrderServiceImp(OrderRepository orderRepository,
                            CartRepository cartRepository,
                            ProductRepository productRepository,
-                           UserServiceImp userServiceImp,
+                           UserService userService,
+                           InvoiceRepository invoiceRepository,
                            DiscountService discountService) {
 
         this.orderRepository = orderRepository;
         this.cartRepository = cartRepository;
         this.productRepository = productRepository;
-        this.userServiceImp = userServiceImp;
+        this.userService = userService;
         this.discountService = discountService;
+        this.invoiceRepository = invoiceRepository;
     }
 
-    public OrderResponseDTO  placeOrder(Long userId, String idempotencyKey) {
+    @Override
+    public OrderResponseDTO placeOrder(Long userId, String idempotencyKey) {
 
-        log.info("Placing order for userId={}, reference={}", userId, idempotencyKey);
-
-        Order existingOrder = orderRepository
-                .findByOrderReference(idempotencyKey)
-                .orElse(null);
+        Order existingOrder =
+                orderRepository.findByOrderReference(idempotencyKey)
+                        .orElse(null);
 
         if (existingOrder != null) {
-            log.warn("Duplicate order request detected. Returning existing order.");
             return mapToResponse(existingOrder);
         }
 
-
-        User user = userServiceImp.getActiveUser(userId);
+        User user = userService.getActiveUser(userId);
 
         Cart cart = cartRepository
                 .findByUserAndStatus(user, CartStatus.ACTIVE)
                 .orElseThrow(() ->
-                        new RuntimeException("Active cart not found"));
+                        new CartNotFoundException("Active cart not found"));
 
         if (cart.getItems().isEmpty()) {
             throw new CartNotFoundException("Cart is empty");
         }
 
-        double totalAmount = 0;
+        BigDecimal totalAmount = BigDecimal.ZERO;
 
         for (CartItem cartItem : cart.getItems()) {
 
             Long productId = cartItem.getProduct().getId();
             Integer quantity = cartItem.getQuantity();
 
-            // 4️⃣ Atomic stock deduction
-            int updatedRows = productRepository
-                    .deductStockIfAvailable(productId, quantity);
+            int updatedRows =
+                    productRepository.deductStockIfAvailable(productId, quantity);
 
             if (updatedRows == 0) {
                 throw new StockNotAvailableException(
                         "Insufficient stock for product id: " + productId);
             }
 
-            double itemTotal = cartItem.getProduct().getPrice() * quantity;
-            totalAmount += itemTotal;
+            BigDecimal itemTotal =
+                    cartItem.getProduct()
+                            .getPrice()
+                            .multiply(BigDecimal.valueOf(quantity));
+
+            totalAmount = totalAmount.add(itemTotal);
         }
 
-        double discountAmount = discountService.applyDiscount(totalAmount);
-        double finalAmount = totalAmount - discountAmount;
+        BigDecimal discountAmount =
+                discountService.applyDiscount(totalAmount);
+
+        BigDecimal finalAmount =
+                totalAmount.subtract(discountAmount);
 
         Order order = Order.builder()
                 .user(user)
@@ -105,9 +116,8 @@ public class OrderServiceImp implements OrderService {
                 .discountAmount(discountAmount)
                 .finalAmount(finalAmount)
                 .status(OrderStatus.CREATED)
+                .paymentStatus(PaymentStatus.UNPAID)
                 .build();
-
-
 
         for (CartItem cartItem : cart.getItems()) {
 
@@ -120,7 +130,10 @@ public class OrderServiceImp implements OrderService {
                     .productName(product.getName())
                     .price(product.getPrice())
                     .quantity(quantity)
-                    .totalPrice(product.getPrice() * quantity)
+                    .totalPrice(
+                            product.getPrice()
+                                    .multiply(BigDecimal.valueOf(quantity))
+                    )
                     .build();
 
             order.getItems().add(orderItem);
@@ -130,33 +143,11 @@ public class OrderServiceImp implements OrderService {
 
         cart.setStatus(CartStatus.ORDERED);
 
-        log.info("Order placed successfully with id={}", savedOrder.getId());
-
         return mapToResponse(savedOrder);
     }
-    private OrderResponseDTO mapToResponse(Order order) {
 
-        List<OrderItemDTO> itemDTOs = order.getItems().stream()
-                .map(item -> new OrderItemDTO(
-                        item.getProductId(),
-                        item.getProductName(),
-                        item.getPrice(),
-                        item.getQuantity(),
-                        item.getTotalPrice()
-                ))
-                .toList();
-
-        return new OrderResponseDTO(
-                order.getId(),
-                order.getOrderReference(),
-                order.getTotalAmount(),
-                order.getDiscountAmount(),
-                order.getFinalAmount(),
-                order.getStatus().name(),
-                itemDTOs
-        );
-    }
-
+    @Override
+    @Transactional(readOnly = true)
     public Page<OrderResponseDTO> getOrderHistory(
             Long userId,
             int page,
@@ -164,7 +155,7 @@ public class OrderServiceImp implements OrderService {
             String sortBy,
             String direction) {
 
-        User user = userServiceImp.getActiveUser(userId);
+        User user = userService.getActiveUser(userId);
 
         Sort sort = direction.equalsIgnoreCase("desc")
                 ? Sort.by(sortBy).descending()
@@ -178,6 +169,19 @@ public class OrderServiceImp implements OrderService {
         return orders.map(this::mapToResponse);
     }
 
+    @Override
+    public OrderResponseDTO updateStatus(Long orderId, OrderStatus newStatus) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() ->
+                        new OrderNotFoundException("Order not found"));
+
+        validateTransition(order.getStatus(), newStatus);
+
+        order.setStatus(newStatus);
+
+        return mapToResponse(order);
+    }
 
     private void validateTransition(OrderStatus current, OrderStatus newStatus) {
 
@@ -207,16 +211,62 @@ public class OrderServiceImp implements OrderService {
                     throw new IllegalStateException("Order cannot be modified");
         }
     }
-    public OrderResponseDTO updateStatus(Long orderId, OrderStatus newStatus) {
+
+    private OrderResponseDTO mapToResponse(Order order) {
+
+        List<OrderItemDTO> items =
+                order.getItems().stream()
+                        .map(item -> new OrderItemDTO(
+                                item.getProductId(),
+                                item.getProductName(),
+                                item.getPrice(),
+                                item.getQuantity(),
+                                item.getTotalPrice()
+                        ))
+                        .toList();
+
+        return new OrderResponseDTO(
+                order.getId(),
+                order.getOrderReference(),
+                order.getTotalAmount(),
+                order.getDiscountAmount(),
+                order.getFinalAmount(),
+                order.getStatus().name(),
+                items
+        );
+    }
+
+    @Override
+    public OrderResponseDTO payOrder(Long orderId) {
 
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+                .orElseThrow(() ->
+                        new OrderNotFoundException("Order not found"));
 
-        validateTransition(order.getStatus(), newStatus);
+        if (order.getPaymentStatus() == PaymentStatus.PAID) {
+            return mapToResponse(order);
+        }
 
-        order.setStatus(newStatus);
+        order.setPaymentStatus(PaymentStatus.PAID);
+        order.setStatus(OrderStatus.CONFIRMED);
+        order.setTransactionId("TXN-" + UUID.randomUUID());
+        order.setPaidAt(LocalDateTime.now());
+
+        generateInvoice(order);
 
         return mapToResponse(order);
+    }
+
+    private void generateInvoice(Order order) {
+
+        Invoice invoice = Invoice.builder()
+                .order(order)
+                .invoiceNumber("INV-" + UUID.randomUUID())
+                .amount(order.getFinalAmount())
+                .issuedAt(LocalDateTime.now())
+                .build();
+
+        invoiceRepository.save(invoice);
     }
 
 

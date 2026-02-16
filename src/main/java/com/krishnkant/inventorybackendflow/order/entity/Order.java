@@ -5,6 +5,8 @@ import com.krishnkant.inventorybackendflow.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,23 +23,21 @@ public class Order extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Which user placed this order
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    // Unique reference for idempotency
     @Column(nullable = false, unique = true)
     private String orderReference;
 
     @Column(nullable = false)
-    private Double totalAmount;
+    private BigDecimal totalAmount;
 
     @Column(nullable = false)
-    private Double discountAmount;
+    private BigDecimal discountAmount;
 
     @Column(nullable = false)
-    private Double finalAmount;
+    private BigDecimal finalAmount;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -50,4 +50,15 @@ public class Order extends BaseEntity {
     )
     @Builder.Default
     private List<OrderItem> items = new ArrayList<>();
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PaymentStatus paymentStatus;
+
+    @Column
+    private String transactionId;
+
+    @Column
+    private LocalDateTime paidAt;
+
 }

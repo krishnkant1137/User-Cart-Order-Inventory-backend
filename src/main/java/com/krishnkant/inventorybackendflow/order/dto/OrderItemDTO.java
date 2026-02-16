@@ -1,9 +1,11 @@
 package com.krishnkant.inventorybackendflow.order.dto;
 
+import java.math.BigDecimal;
+
 public record OrderItemDTO(
         Long productId,
         String productName,
-        Double price,
+        BigDecimal price,
         Integer quantity,
-        Double totalPrice
+        BigDecimal totalPrice
 ) {}

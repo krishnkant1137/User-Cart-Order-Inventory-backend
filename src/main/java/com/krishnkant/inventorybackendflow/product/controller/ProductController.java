@@ -3,6 +3,7 @@ package com.krishnkant.inventorybackendflow.product.controller;
 import com.krishnkant.inventorybackendflow.common.ApiResponse;
 import com.krishnkant.inventorybackendflow.product.dto.ProductRequestDTO;
 import com.krishnkant.inventorybackendflow.product.dto.ProductResponseDTO;
+import com.krishnkant.inventorybackendflow.product.service.ProductService;
 import com.krishnkant.inventorybackendflow.product.service.ProductServiceImp;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -16,22 +17,23 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/products")
 public class ProductController {
 
-    private final ProductServiceImp productServiceImp;
+    private final ProductService productService;
 
-    public ProductController(ProductServiceImp productServiceImp) {
-        this.productServiceImp = productServiceImp;
+    public ProductController(ProductService productService)
+    {
+        this.productService = productService;
     }
 
     @PostMapping
     public ResponseEntity<ApiResponse<ProductResponseDTO>> create(
             @Valid @RequestBody ProductRequestDTO dto) {
 
-        ProductResponseDTO response = productServiceImp.create(dto);
+        ProductResponseDTO response = productService.create(dto);
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(response,
-                        "Product created successfully",
-                        201));
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.success(response, "Product created successfully", HttpStatus.CREATED));
+
     }
 
     @GetMapping
@@ -40,12 +42,11 @@ public class ProductController {
             @RequestParam(defaultValue = "5") int size) {
 
         Page<ProductResponseDTO> products =
-                productServiceImp.getAll(page, size);
+                productService.getAll(page, size);
 
         return ResponseEntity.ok(
                 ApiResponse.success(products,
-                        "Products fetched successfully",
-                        200)
+                        "Products fetched successfully", HttpStatus.OK)
         );
     }
 
@@ -55,9 +56,8 @@ public class ProductController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(
-                        productServiceImp.getById(id),
-                        "Product fetched successfully",
-                        200
+                        productService.getById(id),
+                        "Product fetched successfully",HttpStatus.OK
                 )
         );
     }
@@ -66,12 +66,11 @@ public class ProductController {
     public ResponseEntity<ApiResponse<String>> delete(
             @PathVariable Long id) {
 
-        productServiceImp.softDelete(id);
+        productService.softDelete(id);
 
         return ResponseEntity.ok(
                 ApiResponse.success("Product deleted successfully",
-                        "Deleted",
-                        200)
+                        "Deleted",HttpStatus.OK)
         );
     }
 }

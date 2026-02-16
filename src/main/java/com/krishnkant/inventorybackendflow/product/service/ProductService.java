@@ -1,27 +1,14 @@
 package com.krishnkant.inventorybackendflow.product.service;
 
-import com.krishnkant.inventorybackendflow.exception.ProductNotFoundException;
+import com.krishnkant.inventorybackendflow.product.dto.ProductRequestDTO;
+import com.krishnkant.inventorybackendflow.product.dto.ProductResponseDTO;
 import com.krishnkant.inventorybackendflow.product.entity.Product;
-import com.krishnkant.inventorybackendflow.product.repository.ProductRepository;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
 
-@Slf4j
-@Service
-public class ProductService {
-
-    private final ProductRepository productRepository;
-
-    public ProductService(ProductRepository productRepository) {
-        this.productRepository = productRepository;
+public interface ProductService {
+    public Product getActiveProduct(Long productId);
+    public ProductResponseDTO create(ProductRequestDTO dto);
+    public Page<ProductResponseDTO> getAll(int page, int size);
+    public ProductResponseDTO getById(Long id);
+    public void softDelete(Long id);
     }
-
-    public Product getActiveProduct(Long productId) {
-
-        log.info("Fetching product with id: {}", productId);
-
-        return productRepository.findByIdAndActiveTrue(productId)
-                .orElseThrow(() ->
-                        new ProductNotFoundException("Product not found"));
-    }
-}

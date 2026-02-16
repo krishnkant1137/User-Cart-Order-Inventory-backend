@@ -2,6 +2,8 @@ package com.krishnkant.inventorybackendflow.order.repository;
 
 import com.krishnkant.inventorybackendflow.order.entity.Order;
 import com.krishnkant.inventorybackendflow.user.entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -12,4 +14,5 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByOrderReference(String orderReference);
     List<Order> findByUserOrderByCreatedAtDesc(User user);
 
+    Page<Order> findByUser(User user, Pageable pageable);
 }

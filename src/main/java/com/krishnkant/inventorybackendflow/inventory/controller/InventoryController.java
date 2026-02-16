@@ -1,6 +1,9 @@
 package com.krishnkant.inventorybackendflow.inventory.controller;
 
-import com.krishnkant.inventorybackendflow.inventory.service.InventoryService;
+import com.krishnkant.inventorybackendflow.common.ApiResponse;
+import com.krishnkant.inventorybackendflow.inventory.dto.StockResponse;
+import com.krishnkant.inventorybackendflow.inventory.dto.StockUpdateResponse;
+import com.krishnkant.inventorybackendflow.inventory.service.InventoryServiceImp;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,29 +13,45 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/inventory")
 public class InventoryController {
 
-    private final InventoryService inventoryService;
+    private final InventoryServiceImp inventoryServiceImp;
 
-    public InventoryController(InventoryService inventoryService) {
-        this.inventoryService = inventoryService;
+    public InventoryController(InventoryServiceImp inventoryServiceImp) {
+        this.inventoryServiceImp = inventoryServiceImp;
     }
 
-    // Check stock
     @GetMapping("/stock/{productId}")
-    public ResponseEntity<Integer> checkStock(
+    public ResponseEntity<ApiResponse<StockResponse>> checkStock(
             @PathVariable Long productId) {
 
+        Integer stock = inventoryServiceImp.checkStock(productId);
+
         return ResponseEntity.ok(
-                inventoryService.checkStock(productId));
+                ApiResponse.success(
+                        new StockResponse(productId, stock),
+                        "Stock fetched successfully",
+                        200
+                )
+        );
     }
 
-    // Update stock (admin)
+
     @PutMapping("/stock/{productId}")
-    public ResponseEntity<String> updateStock(
+    public ResponseEntity<ApiResponse<StockUpdateResponse>> updateStock(
             @PathVariable Long productId,
             @RequestParam Integer newStock) {
 
-        inventoryService.updateStock(productId, newStock);
+        inventoryServiceImp.updateStock(productId, newStock);
 
-        return ResponseEntity.ok("Stock updated successfully");
+        StockUpdateResponse response =
+                new StockUpdateResponse(productId, newStock);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        response,
+                        "Stock updated successfully",
+                        200
+                )
+        );
     }
+
 }

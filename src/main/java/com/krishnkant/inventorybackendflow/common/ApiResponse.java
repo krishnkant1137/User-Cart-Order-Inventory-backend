@@ -4,7 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
+import org.slf4j.MDC;
 
 @Data
 @Builder
@@ -24,7 +24,7 @@ public class ApiResponse<T> {
                 .data(data)
                 .status(status)
                 .timestamp(LocalDateTime.now())
-                .requestId(UUID.randomUUID().toString())
+                .requestId(MDC.get("requestId"))
                 .build();
     }
 
@@ -34,7 +34,22 @@ public class ApiResponse<T> {
                 .message(message)
                 .status(status)
                 .timestamp(LocalDateTime.now())
-                .requestId(UUID.randomUUID().toString())
+                .requestId(MDC.get("requestId"))
+                .build();
+    }
+
+    public static <T> ApiResponse<T> failure(
+            T data,
+            String message,
+            int status) {
+
+        return ApiResponse.<T>builder()
+                .success(false)
+                .message(message)
+                .data(data)
+                .status(status)
+                .timestamp(LocalDateTime.now())
+                .requestId(MDC.get("requestId"))
                 .build();
     }
 }

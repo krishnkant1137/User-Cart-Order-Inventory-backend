@@ -2,22 +2,22 @@ package com.krishnkant.inventorybackendflow.order.controller;
 
 import com.krishnkant.inventorybackendflow.common.ApiResponse;
 import com.krishnkant.inventorybackendflow.order.dto.OrderResponseDTO;
-import com.krishnkant.inventorybackendflow.order.service.OrderService;
+import com.krishnkant.inventorybackendflow.order.entity.OrderStatus;
+import com.krishnkant.inventorybackendflow.order.service.OrderServiceImp;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @Slf4j
 @RestController
 @RequestMapping("/orders")
 public class OrderController {
 
-    private final OrderService orderService;
+    private final OrderServiceImp orderServiceImp;
 
-    public OrderController(OrderService orderService) {
-        this.orderService = orderService;
+    public OrderController(OrderServiceImp orderServiceImp) {
+        this.orderServiceImp = orderServiceImp;
     }
 
     @PostMapping("/place")
@@ -26,7 +26,7 @@ public class OrderController {
             @RequestHeader("Idempotency-Key") String idempotencyKey) {
 
         OrderResponseDTO response =
-                orderService.placeOrder(userId, idempotencyKey);
+                orderServiceImp.placeOrder(userId, idempotencyKey);
 
         return ResponseEntity.ok(
                 ApiResponse.success(response,
@@ -37,11 +37,15 @@ public class OrderController {
 
 
     @GetMapping("/history")
-    public ResponseEntity<ApiResponse<List<OrderResponseDTO>>> getOrderHistory(
-            @RequestParam Long userId) {
+    public ResponseEntity<ApiResponse<Page<OrderResponseDTO>>> getOrderHistory(
+            @RequestParam Long userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction) {
 
-        List<OrderResponseDTO> history =
-                orderService.getOrderHistory(userId);
+        Page<OrderResponseDTO> history =
+                orderServiceImp.getOrderHistory(userId, page, size, sortBy, direction);
 
         return ResponseEntity.ok(
                 ApiResponse.success(history,
@@ -49,6 +53,23 @@ public class OrderController {
                         200)
         );
     }
+    @PutMapping("/{orderId}/status")
+    public ResponseEntity<ApiResponse<OrderResponseDTO>> updateStatus(
+            @PathVariable Long orderId,
+            @RequestParam OrderStatus newStatus) {
+
+        OrderResponseDTO response =
+                orderServiceImp.updateStatus(orderId, newStatus);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        response,
+                        "Order status updated successfully",
+                        200
+                )
+        );
+    }
+
 
 
 }

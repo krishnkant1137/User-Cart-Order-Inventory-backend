@@ -48,5 +48,6 @@ public class Order extends BaseEntity {
             cascade = CascadeType.ALL,
             orphanRemoval = true
     )
+    @Builder.Default
     private List<OrderItem> items = new ArrayList<>();
 }

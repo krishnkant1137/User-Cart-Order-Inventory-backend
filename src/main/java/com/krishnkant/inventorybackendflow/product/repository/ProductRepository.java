@@ -1,6 +1,8 @@
 package com.krishnkant.inventorybackendflow.product.repository;
 
 import com.krishnkant.inventorybackendflow.product.entity.Product;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -20,5 +22,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         AND p.stock >= :quantity
     """)
     int deductStockIfAvailable(Long productId, Integer quantity);
+
+    Page<Product> findByActiveTrue(Pageable pageable);
 }
 

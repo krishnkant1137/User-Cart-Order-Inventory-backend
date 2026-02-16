@@ -28,4 +28,8 @@ public class Product extends BaseEntity {
 
     @Column(nullable = false)
     private Boolean active = true;
+
+    @Version
+    private Long version;
+
 }

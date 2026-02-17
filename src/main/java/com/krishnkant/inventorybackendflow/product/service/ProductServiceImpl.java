@@ -16,11 +16,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @Transactional
-public class ProductServiceImp implements ProductService {
+public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
 
-    public ProductServiceImp(ProductRepository productRepository) {
+    public ProductServiceImpl(ProductRepository productRepository) {
 
         this.productRepository = productRepository;
     }

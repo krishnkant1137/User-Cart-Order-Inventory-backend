@@ -11,13 +11,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Transactional
 @Service
-public class InventoryServiceImp implements InventoryService {
+public class InventoryServiceImpl implements InventoryService {
 
     private final ProductRepository productRepository;
     private final StockCache stockCache;
 
-    public InventoryServiceImp(ProductRepository productRepository,
-                               StockCache stockCache) {
+    public InventoryServiceImpl(ProductRepository productRepository,
+                                StockCache stockCache) {
         this.productRepository = productRepository;
         this.stockCache = stockCache;
     }

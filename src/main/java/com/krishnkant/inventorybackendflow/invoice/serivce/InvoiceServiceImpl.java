@@ -58,15 +58,28 @@ public class InvoiceServiceImpl implements InvoiceService {
                 invoice.getInvoiceNumber(),
                 order.getOrderReference(),
                 order.getTransactionId(),
+                order.getOrderPlacedAt(),
+                order.getPaymentMethod() != null
+                        ? order.getPaymentMethod().name()
+                        : null,
+                null,
+
                 order.getUser().getName(),
                 order.getUser().getEmail(),
+
                 order.getTotalAmount(),
                 order.getDiscountAmount(),
                 order.getFinalAmount(),
+                order.getTaxAmount(),
+                order.getShippingAmount(),
+
                 order.getPaymentStatus().name(),
                 order.getStatus().name(),
+                order.getEstimatedDeliveryDate(),
+
                 invoice.getIssuedAt(),
                 items
         );
+
     }
 }

@@ -12,10 +12,7 @@ import com.krishnkant.inventorybackendflow.invoice.entity.Invoice;
 import com.krishnkant.inventorybackendflow.invoice.repository.InvoiceRepository;
 import com.krishnkant.inventorybackendflow.order.dto.OrderItemDTO;
 import com.krishnkant.inventorybackendflow.order.dto.OrderResponseDTO;
-import com.krishnkant.inventorybackendflow.order.entity.Order;
-import com.krishnkant.inventorybackendflow.order.entity.OrderItem;
-import com.krishnkant.inventorybackendflow.order.entity.OrderStatus;
-import com.krishnkant.inventorybackendflow.order.entity.PaymentStatus;
+import com.krishnkant.inventorybackendflow.order.entity.*;
 import com.krishnkant.inventorybackendflow.order.repository.OrderRepository;
 import com.krishnkant.inventorybackendflow.product.entity.Product;
 import com.krishnkant.inventorybackendflow.product.repository.ProductRepository;
@@ -25,7 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -34,7 +30,7 @@ import java.util.UUID;
 @Slf4j
 @Service
 @Transactional
-public class OrderServiceImp implements OrderService {
+public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
     private final CartRepository cartRepository;
@@ -43,12 +39,12 @@ public class OrderServiceImp implements OrderService {
     private final DiscountService discountService;
     private final InvoiceRepository invoiceRepository;
 
-    public OrderServiceImp(OrderRepository orderRepository,
-                           CartRepository cartRepository,
-                           ProductRepository productRepository,
-                           UserService userService,
-                           InvoiceRepository invoiceRepository,
-                           DiscountService discountService) {
+    public OrderServiceImpl(OrderRepository orderRepository,
+                            CartRepository cartRepository,
+                            ProductRepository productRepository,
+                            UserService userService,
+                            DiscountService discountService,
+                            InvoiceRepository invoiceRepository) {
 
         this.orderRepository = orderRepository;
         this.cartRepository = cartRepository;
@@ -80,7 +76,7 @@ public class OrderServiceImp implements OrderService {
             throw new CartNotFoundException("Cart is empty");
         }
 
-        BigDecimal totalAmount = BigDecimal.ZERO;
+        BigDecimal subtotal = BigDecimal.ZERO;
 
         for (CartItem cartItem : cart.getItems()) {
 
@@ -100,21 +96,33 @@ public class OrderServiceImp implements OrderService {
                             .getPrice()
                             .multiply(BigDecimal.valueOf(quantity));
 
-            totalAmount = totalAmount.add(itemTotal);
+            subtotal = subtotal.add(itemTotal);
         }
 
         BigDecimal discountAmount =
-                discountService.applyDiscount(totalAmount);
+                discountService.applyDiscount(subtotal);
+
+        BigDecimal taxableAmount =
+                subtotal.subtract(discountAmount);
+
+        BigDecimal taxAmount =
+                taxableAmount.multiply(new BigDecimal("0.18"));
+
+        BigDecimal shippingAmount =
+                new BigDecimal("100");
 
         BigDecimal finalAmount =
-                totalAmount.subtract(discountAmount);
+                taxableAmount.add(taxAmount).add(shippingAmount);
 
         Order order = Order.builder()
                 .user(user)
                 .orderReference(idempotencyKey)
-                .totalAmount(totalAmount)
+                .totalAmount(subtotal)
                 .discountAmount(discountAmount)
+                .taxAmount(taxAmount)
+                .shippingAmount(shippingAmount)
                 .finalAmount(finalAmount)
+                .orderPlacedAt(LocalDateTime.now())
                 .status(OrderStatus.CREATED)
                 .paymentStatus(PaymentStatus.UNPAID)
                 .build();
@@ -168,7 +176,6 @@ public class OrderServiceImp implements OrderService {
 
         return orders.map(this::mapToResponse);
     }
-
     @Override
     public OrderResponseDTO updateStatus(Long orderId, OrderStatus newStatus) {
 
@@ -176,40 +183,47 @@ public class OrderServiceImp implements OrderService {
                 .orElseThrow(() ->
                         new OrderNotFoundException("Order not found"));
 
-        validateTransition(order.getStatus(), newStatus);
-
         order.setStatus(newStatus);
 
         return mapToResponse(order);
     }
 
-    private void validateTransition(OrderStatus current, OrderStatus newStatus) {
 
-        switch (current) {
+    @Override
+    public OrderResponseDTO payOrder(Long orderId) {
 
-            case CREATED -> {
-                if (newStatus != OrderStatus.CONFIRMED &&
-                        newStatus != OrderStatus.CANCELLED) {
-                    throw new IllegalStateException("Invalid status transition");
-                }
-            }
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() ->
+                        new OrderNotFoundException("Order not found"));
 
-            case CONFIRMED -> {
-                if (newStatus != OrderStatus.SHIPPED &&
-                        newStatus != OrderStatus.CANCELLED) {
-                    throw new IllegalStateException("Invalid status transition");
-                }
-            }
-
-            case SHIPPED -> {
-                if (newStatus != OrderStatus.DELIVERED) {
-                    throw new IllegalStateException("Invalid status transition");
-                }
-            }
-
-            case DELIVERED, CANCELLED ->
-                    throw new IllegalStateException("Order cannot be modified");
+        if (order.getPaymentStatus() == PaymentStatus.PAID) {
+            return mapToResponse(order);
         }
+
+        order.setPaymentStatus(PaymentStatus.PAID);
+        order.setPaymentMethod(PaymentMethod.UPI);
+        order.setTransactionId("TXN-" + UUID.randomUUID());
+        order.setPaidAt(LocalDateTime.now());
+        order.setStatus(OrderStatus.CONFIRMED);
+        order.setEstimatedDeliveryDate(
+                LocalDateTime.now().plusDays(2)
+        );
+
+        generateInvoice(order);
+
+        return mapToResponse(order);
+    }
+
+    private void generateInvoice(Order order) {
+
+        Invoice invoice = Invoice.builder()
+                .order(order)
+                .invoiceNumber("INV-" + UUID.randomUUID())
+                .amount(order.getFinalAmount())
+                .issuedAt(LocalDateTime.now())
+                .build();
+
+        invoiceRepository.save(invoice);
     }
 
     private OrderResponseDTO mapToResponse(Order order) {
@@ -230,44 +244,15 @@ public class OrderServiceImp implements OrderService {
                 order.getOrderReference(),
                 order.getTotalAmount(),
                 order.getDiscountAmount(),
+                order.getTaxAmount(),
+                order.getShippingAmount(),
                 order.getFinalAmount(),
+                order.getPaymentStatus().name(),
+                order.getPaymentMethod() != null
+                        ? order.getPaymentMethod().name()
+                        : null,
                 order.getStatus().name(),
                 items
         );
     }
-
-    @Override
-    public OrderResponseDTO payOrder(Long orderId) {
-
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() ->
-                        new OrderNotFoundException("Order not found"));
-
-        if (order.getPaymentStatus() == PaymentStatus.PAID) {
-            return mapToResponse(order);
-        }
-
-        order.setPaymentStatus(PaymentStatus.PAID);
-        order.setStatus(OrderStatus.CONFIRMED);
-        order.setTransactionId("TXN-" + UUID.randomUUID());
-        order.setPaidAt(LocalDateTime.now());
-
-        generateInvoice(order);
-
-        return mapToResponse(order);
-    }
-
-    private void generateInvoice(Order order) {
-
-        Invoice invoice = Invoice.builder()
-                .order(order)
-                .invoiceNumber("INV-" + UUID.randomUUID())
-                .amount(order.getFinalAmount())
-                .issuedAt(LocalDateTime.now())
-                .build();
-
-        invoiceRepository.save(invoice);
-    }
-
-
 }

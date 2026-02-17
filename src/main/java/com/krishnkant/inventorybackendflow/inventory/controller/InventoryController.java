@@ -3,7 +3,7 @@ package com.krishnkant.inventorybackendflow.inventory.controller;
 import com.krishnkant.inventorybackendflow.common.ApiResponse;
 import com.krishnkant.inventorybackendflow.inventory.dto.StockResponse;
 import com.krishnkant.inventorybackendflow.inventory.dto.StockUpdateResponse;
-import com.krishnkant.inventorybackendflow.inventory.service.InventoryServiceImp;
+import com.krishnkant.inventorybackendflow.inventory.service.InventoryServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,17 +14,17 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/inventory")
 public class InventoryController {
 
-    private final InventoryServiceImp inventoryServiceImp;
+    private final InventoryServiceImpl inventoryServiceImpl;
 
-    public InventoryController(InventoryServiceImp inventoryServiceImp) {
-        this.inventoryServiceImp = inventoryServiceImp;
+    public InventoryController(InventoryServiceImpl inventoryServiceImpl) {
+        this.inventoryServiceImpl = inventoryServiceImpl;
     }
 
     @GetMapping("/stock/{productId}")
     public ResponseEntity<ApiResponse<StockResponse>> checkStock(
             @PathVariable Long productId) {
 
-        Integer stock = inventoryServiceImp.checkStock(productId);
+        Integer stock = inventoryServiceImpl.checkStock(productId);
 
         return ResponseEntity.ok(
                 ApiResponse.success(
@@ -41,7 +41,7 @@ public class InventoryController {
             @PathVariable Long productId,
             @RequestParam Integer newStock) {
 
-        inventoryServiceImp.updateStock(productId, newStock);
+        inventoryServiceImpl.updateStock(productId, newStock);
 
         StockUpdateResponse response =
                 new StockUpdateResponse(productId, newStock);

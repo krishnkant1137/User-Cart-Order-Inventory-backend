@@ -8,7 +8,12 @@ public record OrderResponseDTO(
         String orderReference,
         BigDecimal totalAmount,
         BigDecimal discountAmount,
+        BigDecimal taxAmount,
+        BigDecimal shippingAmount,
         BigDecimal finalAmount,
+        String paymentStatus,
+        String paymentMethod,
         String status,
         List<OrderItemDTO> items
 ) {}
+

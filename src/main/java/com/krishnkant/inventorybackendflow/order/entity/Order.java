@@ -60,5 +60,19 @@ public class Order extends BaseEntity {
 
     @Column
     private LocalDateTime paidAt;
+    private LocalDateTime orderPlacedAt;
+
+    @Enumerated(EnumType.STRING)
+    private PaymentMethod paymentMethod;
+
+    @Column(nullable = false)
+    private BigDecimal taxAmount;
+
+    @Column(nullable = false)
+    private BigDecimal shippingAmount;
+
+    @Column(nullable = false)
+    private LocalDateTime estimatedDeliveryDate;
+
 
 }
